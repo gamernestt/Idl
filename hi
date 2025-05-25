@@ -1,0 +1,249 @@
+// noVNC/RDP Keepalive Automation Script
+// Runs automatically in the background without user interaction
+
+(function() {
+    // Configuration
+    const config = {
+        // Timing intervals (in milliseconds)
+        mouseMoveInterval: 25000,       // 25 seconds
+        clickInterval: 45000,           // 45 seconds
+        keyPressInterval: 60000,        // 60 seconds
+        scrollInterval: 90000,          // 90 seconds
+        majorActionInterval: 300000,    // 5 minutes
+        
+        // Activity intensity
+        maxClicksPerCycle: 2,
+        maxKeyPressesPerCycle: 1,
+        
+        // Element selectors (noVNC/RDP specific)
+        canvasSelector: '#noVNC_canvas', // noVNC canvas
+        rdpContainer: '.xrdp',          // Common RDP container
+        sendKeysInput: '#noVNC_keyboard_input', // noVNC keyboard input
+        
+        // Behavior control
+        debug: true,                    // Show console logs
+        persistence: true,              // Survive page reloads
+        safeMode: true                  // Avoid destructive actions
+    };
+
+    // State management
+    const state = {
+        active: false,
+        timers: [],
+        lastMajorAction: 0,
+        isRDP: false,
+        isnoVNC: false
+    };
+
+    // Initialize
+    function init() {
+        detectEnvironment();
+        
+        if (config.persistence && localStorage.getItem('vncKeepaliveActive') === 'true') {
+            setTimeout(start, 3000); // Wait for page to fully load
+        }
+        
+        // Expose controls to window
+        window.vncKeepalive = {
+            start,
+            stop,
+            getConfig: () => ({...config}),
+            setConfig: (newConfig) => Object.assign(config, newConfig),
+            isActive: () => state.active
+        };
+    }
+
+    // Environment detection
+    function detectEnvironment() {
+        state.isnoVNC = !!document.querySelector(config.canvasSelector);
+        state.isRDP = !state.isnoVNC && !!document.querySelector(config.rdpContainer);
+        
+        if (config.debug) {
+            console.log(`Detected environment: ${state.isnoVNC ? 'noVNC' : state.isRDP ? 'RDP' : 'Unknown'}`);
+        }
+    }
+
+    // Activity simulation functions
+    function simulateMouseMove() {
+        const target = state.isnoVNC ? 
+            document.querySelector(config.canvasSelector) : 
+            document.querySelector(config.rdpContainer) || document;
+        
+        if (!target) return;
+        
+        const rect = target.getBoundingClientRect();
+        const x = rect.left + 10 + Math.random() * (rect.width - 20);
+        const y = rect.top + 10 + Math.random() * (rect.height - 20);
+        
+        const events = [
+            new MouseEvent('mousemove', { clientX: x, clientY: y, bubbles: true }),
+            new MouseEvent('mouseover', { clientX: x, clientY: y, bubbles: true })
+        ];
+        
+        events.forEach(e => {
+            try {
+                target.dispatchEvent(e);
+                if (config.debug) console.log(`Mouse moved to (${Math.round(x)}, ${Math.round(y)})`);
+            } catch (err) {
+                if (config.debug) console.warn('Mouse event failed:', err);
+            }
+        });
+    }
+
+    function simulateClick() {
+        const target = state.isnoVNC ? 
+            document.querySelector(config.canvasSelector) : 
+            document.querySelector(config.rdpContainer) || document;
+        
+        if (!target) return;
+        
+        const rect = target.getBoundingClientRect();
+        const x = rect.left + 10 + Math.random() * (rect.width - 20);
+        const y = rect.top + 10 + Math.random() * (rect.height - 20);
+        
+        const events = [
+            new MouseEvent('mousedown', { clientX: x, clientY: y, bubbles: true, button: 0 }),
+            new MouseEvent('mouseup', { clientX: x, clientY: y, bubbles: true, button: 0 }),
+            new MouseEvent('click', { clientX: x, clientY: y, bubbles: true, button: 0 })
+        ];
+        
+        events.forEach(e => {
+            try {
+                target.dispatchEvent(e);
+                if (config.debug) console.log(`Clicked at (${Math.round(x)}, ${Math.round(y)})`);
+            } catch (err) {
+                if (config.debug) console.warn('Click event failed:', err);
+            }
+        });
+    }
+
+    function simulateKeyPress() {
+        const keys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter', ' '];
+        const key = keys[Math.floor(Math.random() * keys.length)];
+        
+        if (state.isnoVNC && config.sendKeysInput) {
+            // For noVNC's keyboard input
+            const input = document.querySelector(config.sendKeysInput);
+            if (input) {
+                input.value = key;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+                input.dispatchEvent(new Event('change', { bubbles: true }));
+                if (config.debug) console.log(`Sent key to noVNC: ${key}`);
+                return;
+            }
+        }
+        
+        // Fallback to direct key events
+        const events = [
+            new KeyboardEvent('keydown', { key, bubbles: true }),
+            new KeyboardEvent('keypress', { key, bubbles: true }),
+            new KeyboardEvent('keyup', { key, bubbles: true })
+        ];
+        
+        const target = document.activeElement || document.body;
+        
+        events.forEach(e => {
+            try {
+                target.dispatchEvent(e);
+                if (config.debug) console.log(`Sent keypress: ${key}`);
+            } catch (err) {
+                if (config.debug) console.warn('Key event failed:', err);
+            }
+        });
+    }
+
+    function simulateScroll() {
+        const scrollAmount = Math.random() > 0.5 ? 100 : -100;
+        const target = state.isRDP ? 
+            document.querySelector(config.rdpContainer) || window : 
+            window;
+        
+        try {
+            target.scrollBy(0, scrollAmount);
+            if (config.debug) console.log(`Scrolled by ${scrollAmount}px`);
+        } catch (err) {
+            if (config.debug) console.warn('Scroll failed:', err);
+        }
+    }
+
+    function performMajorAction() {
+        const now = Date.now();
+        if (now - state.lastMajorAction < config.majorActionInterval) return;
+        
+        state.lastMajorAction = now;
+        
+        // Simulate more noticeable activity
+        if (config.debug) console.log('Performing major activity cycle');
+        
+        // Multiple clicks
+        for (let i = 0; i < config.maxClicksPerCycle; i++) {
+            setTimeout(simulateClick, i * 1000);
+        }
+        
+        // Multiple key presses
+        for (let i = 0; i < config.maxKeyPressesPerCycle; i++) {
+            setTimeout(simulateKeyPress, (config.maxClicksPerCycle + i) * 1000);
+        }
+        
+        // Scroll
+        setTimeout(simulateScroll, (config.maxClicksPerCycle + config.maxKeyPressesPerCycle) * 1000);
+    }
+
+    // Control functions
+    function start() {
+        if (state.active) return;
+        
+        state.active = true;
+        if (config.persistence) {
+            try {
+                localStorage.setItem('vncKeepaliveActive', 'true');
+            } catch (err) {
+                if (config.debug) console.warn('Failed to persist state:', err);
+            }
+        }
+        
+        if (config.debug) console.log('Starting VNC/RDP keepalive automation');
+        
+        // Initial actions
+        simulateMouseMove();
+        simulateClick();
+        simulateKeyPress();
+        
+        // Set up intervals
+        state.timers = [
+            setInterval(simulateMouseMove, config.mouseMoveInterval),
+            setInterval(simulateClick, config.clickInterval),
+            setInterval(simulateKeyPress, config.keyPressInterval),
+            setInterval(simulateScroll, config.scrollInterval),
+            setInterval(performMajorAction, config.majorActionInterval)
+        ];
+    }
+
+    function stop() {
+        if (!state.active) return;
+        
+        state.active = false;
+        state.timers.forEach(clearInterval);
+        state.timers = [];
+        
+        if (config.persistence) {
+            try {
+                localStorage.removeItem('vncKeepaliveActive');
+            } catch (err) {
+                if (config.debug) console.warn('Failed to clear persistence:', err);
+            }
+        }
+        
+        if (config.debug) console.log('Stopped VNC/RDP keepalive automation');
+    }
+
+    // Auto-start on page load if persisted
+    window.addEventListener('load', () => {
+        if (config.persistence && localStorage.getItem('vncKeepaliveActive') === 'true') {
+            setTimeout(start, 3000);
+        }
+    });
+
+    // Initialize
+    init();
+})();
