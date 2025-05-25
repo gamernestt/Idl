@@ -1,0 +1,276 @@
+// Microsoft Edge-Compatible GitHub Codespaces Keep-Alive
+// Persists across page reloads and includes Edge optimizations
+
+(function() {
+    // Configuration
+    const config = {
+        clickInterval: 50000,        // 50 seconds between clicks
+        moveInterval: 40000,         // 40 seconds between mouse movements
+        activityInterval: 290000,    // 4.83 minutes between major activities
+        maxClicks: 1,                // More subtle interactions
+        debug: true,                 // Show console logs
+        persistenceKey: 'edgeCodespacesKeepAlive',
+        edgeDetection: true          // Edge-specific optimizations
+    };
+
+    // Check if we should auto-start (with Edge compatibility check)
+    const shouldAutoStart = () => {
+        try {
+            return localStorage.getItem(config.persistenceKey) === 'true' && 
+                   (navigator.userAgent.includes('Edg/') || 
+                    navigator.userAgent.includes('Edge'));
+        } catch (e) {
+            console.warn('LocalStorage access failed', e);
+            return false;
+        }
+    };
+
+    // Initialize with delay for Edge's DOM loading
+    if (shouldAutoStart()) {
+        if (document.readyState === 'complete') {
+            setTimeout(initKeepAlive, 2000);
+        } else {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(initKeepAlive, 2000);
+            });
+        }
+    }
+
+    function initKeepAlive() {
+        // State management
+        const state = {
+            isRunning: false,
+            timers: [],
+            lastActivity: 0,
+            edgeFeatures: config.edgeDetection && 
+                        (navigator.userAgent.includes('Edg/') || 
+                         navigator.userAgent.includes('Edge'))
+        };
+
+        // Enhanced Edge-compatible logger
+        const log = (...args) => {
+            if (config.debug) {
+                console.log('%c[Edge Keep-Alive]', 'color: #0078D7; font-weight: bold', ...args);
+            }
+        };
+
+        // Edge-optimized element finder
+        const findInteractiveElements = () => {
+            const selectors = [
+                // VS Code/Codespaces elements
+                '.editor-actions .action-label',
+                '.statusbar-item',
+                '.tabs-container .tab',
+                '.explorer-item',
+                '[data-testid="codespaces-activity-bar-tab"]',
+                
+                // Edge-optimized selectors
+                'button:not([disabled]):not([aria-hidden="true"])',
+                'a[href]:not([aria-hidden="true"])',
+                '[role="button"]:not([aria-hidden="true"])',
+                '[tabindex="0"]:not([aria-hidden="true"])'
+            ];
+
+            return selectors.flatMap(selector => {
+                try {
+                    return Array.from(document.querySelectorAll(selector)).filter(el => {
+                        try {
+                            const rect = el.getBoundingClientRect();
+                            const style = window.getComputedStyle(el);
+                            return rect.width > 2 && rect.height > 2 &&
+                                   style.visibility === 'visible' &&
+                                   style.display !== 'none' &&
+                                   style.pointerEvents !== 'none' &&
+                                   style.opacity !== '0';
+                        } catch (e) {
+                            return false;
+                        }
+                    });
+                } catch (e) {
+                    log('Selector error:', selector, e);
+                    return [];
+                }
+            });
+        };
+
+        // Edge-optimized mouse movement
+        const simulateMouseMove = () => {
+            const x = window.scrollX + 50 + Math.random() * (window.innerWidth - 100);
+            const y = window.scrollY + 50 + Math.random() * (window.innerHeight - 100);
+            
+            const events = [
+                new MouseEvent('mouseover', { bubbles: true, view: window }),
+                new MouseEvent('mousemove', { clientX: x, clientY: y, bubbles: true, view: window })
+            ];
+            
+            events.forEach(event => {
+                try {
+                    document.dispatchEvent(event);
+                } catch (e) {
+                    log('Mouse event error:', e);
+                }
+            });
+            
+            log(`Mouse moved to (${Math.round(x)}, ${Math.round(y)})`);
+        };
+
+        // Edge-compatible click simulation
+        const simulateClick = (element) => {
+            if (!element) return false;
+            
+            try {
+                const rect = element.getBoundingClientRect();
+                const x = rect.left + rect.width/2;
+                const y = rect.top + rect.height/2;
+                
+                const events = [
+                    new MouseEvent('mouseover', { bubbles: true, view: window }),
+                    new MouseEvent('mousedown', { bubbles: true, clientX: x, clientY: y, view: window }),
+                    new MouseEvent('mouseup', { bubbles: true, clientX: x, clientY: y, view: window }),
+                    new MouseEvent('click', { bubbles: true, clientX: x, clientY: y, view: window })
+                ];
+                
+                events.forEach(event => {
+                    element.dispatchEvent(event);
+                });
+                
+                return true;
+            } catch (e) {
+                log('Click simulation failed:', e);
+                return false;
+            }
+        };
+
+        // Major activity simulation (Edge-optimized)
+        const simulateMajorActivity = () => {
+            const now = Date.now();
+            if (now - state.lastActivity < config.activityInterval) return;
+            
+            state.lastActivity = now;
+            
+            try {
+                // Try to find and interact with the activity bar
+                const activityBar = document.querySelector('[data-testid="codespaces-activity-bar"]');
+                if (activityBar) {
+                    const tabs = activityBar.querySelectorAll('[role="tab"]');
+                    if (tabs.length > 1) {
+                        const activeIndex = Array.from(tabs).findIndex(t => t.getAttribute('aria-selected') === 'true');
+                        const nextIndex = (activeIndex + 1) % tabs.length;
+                        
+                        if (simulateClick(tabs[nextIndex])) {
+                            log(`Switched to ${tabs[nextIndex].getAttribute('aria-label')} tab`);
+                            
+                            setTimeout(() => {
+                                simulateClick(tabs[activeIndex]);
+                            }, 2500);
+                        }
+                    }
+                }
+                
+                // Simulate file explorer interaction
+                const explorer = document.querySelector('.explorer-folders-view') || 
+                               document.querySelector('.files-explorer');
+                if (explorer) {
+                    explorer.scrollBy(0, Math.random() > 0.5 ? 30 : -30);
+                    log("Scrolled file explorer");
+                }
+            } catch (e) {
+                log('Major activity error:', e);
+            }
+        };
+
+        // Main activity function
+        const performKeepAliveActions = () => {
+            simulateMajorActivity();
+            
+            const elements = findInteractiveElements();
+            if (elements.length === 0) {
+                log('No interactive elements found');
+                return;
+            }
+            
+            // Get a random element that's currently visible
+            const visibleElements = elements.filter(el => {
+                const rect = el.getBoundingClientRect();
+                return rect.top >= 0 && 
+                       rect.left >= 0 &&
+                       rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+                       rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+            });
+            
+            const targetElements = visibleElements.length > 0 ? visibleElements : elements;
+            const element = targetElements[Math.floor(Math.random() * targetElements.length)];
+            
+            if (simulateClick(element)) {
+                log(`Interacted with ${element.tagName.toLowerCase()}${element.id ? '#' + element.id : ''}`);
+            }
+        };
+
+        // Start function with Edge optimizations
+        const start = () => {
+            if (state.isRunning) return;
+            
+            log('Starting Edge-optimized keep-alive');
+            state.isRunning = true;
+            
+            try {
+                localStorage.setItem(config.persistenceKey, 'true');
+            } catch (e) {
+                log('LocalStorage set failed:', e);
+            }
+            
+            // Initial actions
+            simulateMouseMove();
+            performKeepAliveActions();
+            
+            // Set intervals
+            state.timers = [
+                setInterval(performKeepAliveActions, config.clickInterval),
+                setInterval(simulateMouseMove, config.moveInterval)
+            ];
+        };
+
+        // Stop function
+        const stop = () => {
+            if (!state.isRunning) return;
+            
+            log('Stopping keep-alive');
+            state.timers.forEach(clearInterval);
+            state.timers = [];
+            state.isRunning = false;
+            
+            try {
+                localStorage.removeItem(config.persistenceKey);
+            } catch (e) {
+                log('LocalStorage remove failed:', e);
+            }
+        };
+
+        // Auto-start if needed
+        if (shouldAutoStart()) {
+            start();
+        }
+
+        // Expose controls
+        window.edgeCodespacesKeepAlive = {
+            start,
+            stop,
+            getConfig: () => ({ ...config }),
+            isRunning: () => state.isRunning
+        };
+
+        // Add unload handler to clean up
+        window.addEventListener('beforeunload', () => {
+            if (state.isRunning) {
+                try {
+                    localStorage.setItem(config.persistenceKey, 'true');
+                } catch (e) {
+                    // Ignore errors
+                }
+            }
+        });
+    }
+
+    // Initialize
+    initKeepAlive();
+})();
