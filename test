@@ -1,120 +1,112 @@
-// Microsoft Edge-Compatible GitHub Codespaces Keep-Alive
-// Persists across page reloads and includes Edge optimizations
+// Firefox-Compatible GitHub Codespaces Keep-Alive
+// Run this in Firefox's console (F12 > Console)
 
 (function() {
     // Configuration
     const config = {
-        clickInterval: 50000,        // 50 seconds between clicks
-        moveInterval: 40000,         // 40 seconds between mouse movements
-        activityInterval: 290000,    // 4.83 minutes between major activities
+        clickInterval: 55000,        // 55 seconds between clicks
+        moveInterval: 35000,         // 35 seconds between mouse movements
+        activityInterval: 300000,    // 5 minutes between major activities
         maxClicks: 1,                // More subtle interactions
         debug: true,                 // Show console logs
-        persistenceKey: 'edgeCodespacesKeepAlive',
-        edgeDetection: true          // Edge-specific optimizations
+        persistenceKey: 'firefoxCodespacesKeepAlive'
     };
 
-    // Check if we should auto-start (with Edge compatibility check)
-    const shouldAutoStart = () => {
-        try {
-            return localStorage.getItem(config.persistenceKey) === 'true' && 
-                   (navigator.userAgent.includes('Edg/') || 
-                    navigator.userAgent.includes('Edge'));
-        } catch (e) {
-            console.warn('LocalStorage access failed', e);
-            return false;
-        }
-    };
-
-    // Initialize with delay for Edge's DOM loading
-    if (shouldAutoStart()) {
-        if (document.readyState === 'complete') {
-            setTimeout(initKeepAlive, 2000);
-        } else {
-            document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(initKeepAlive, 2000);
-            });
-        }
-    }
-
-    function initKeepAlive() {
-        // State management
-        const state = {
-            isRunning: false,
-            timers: [],
-            lastActivity: 0,
-            edgeFeatures: config.edgeDetection && 
-                        (navigator.userAgent.includes('Edg/') || 
-                         navigator.userAgent.includes('Edge'))
-        };
-
-        // Enhanced Edge-compatible logger
-        const log = (...args) => {
-            if (config.debug) {
-                console.log('%c[Edge Keep-Alive]', 'color: #0078D7; font-weight: bold', ...args);
+    // Firefox-specific initialization
+    function init() {
+        // Check if we should auto-start
+        const shouldAutoStart = () => {
+            try {
+                return localStorage.getItem(config.persistenceKey) === 'true';
+            } catch (e) {
+                console.warn('Firefox localStorage access error:', e);
+                return false;
             }
         };
 
-        // Edge-optimized element finder
+        if (shouldAutoStart()) {
+            // Firefox-specific DOM ready check
+            const checkReady = () => {
+                if (document.readyState === 'complete') {
+                    setTimeout(startKeepAlive, 2000);
+                } else {
+                    document.addEventListener('DOMContentLoaded', () => {
+                        setTimeout(startKeepAlive, 2000);
+                    });
+                }
+            };
+            checkReady();
+        }
+
+        // Firefox-compatible element finder
         const findInteractiveElements = () => {
             const selectors = [
-                // VS Code/Codespaces elements
+                // GitHub Codespaces specific elements
                 '.editor-actions .action-label',
                 '.statusbar-item',
                 '.tabs-container .tab',
                 '.explorer-item',
                 '[data-testid="codespaces-activity-bar-tab"]',
                 
-                // Edge-optimized selectors
-                'button:not([disabled]):not([aria-hidden="true"])',
-                'a[href]:not([aria-hidden="true"])',
-                '[role="button"]:not([aria-hidden="true"])',
-                '[tabindex="0"]:not([aria-hidden="true"])'
+                // Firefox-optimized selectors
+                'button:not([disabled])',
+                'a[href]',
+                'div[role="button"]',
+                '[tabindex="0"]'
             ];
 
-            return selectors.flatMap(selector => {
+            let elements = [];
+            selectors.forEach(selector => {
                 try {
-                    return Array.from(document.querySelectorAll(selector)).filter(el => {
-                        try {
-                            const rect = el.getBoundingClientRect();
-                            const style = window.getComputedStyle(el);
-                            return rect.width > 2 && rect.height > 2 &&
-                                   style.visibility === 'visible' &&
-                                   style.display !== 'none' &&
-                                   style.pointerEvents !== 'none' &&
-                                   style.opacity !== '0';
-                        } catch (e) {
-                            return false;
-                        }
-                    });
+                    elements = elements.concat([...document.querySelectorAll(selector)]);
                 } catch (e) {
-                    log('Selector error:', selector, e);
-                    return [];
+                    if (config.debug) console.log('Firefox selector error:', e);
+                }
+            });
+
+            return elements.filter(el => {
+                try {
+                    const rect = el.getBoundingClientRect();
+                    const style = window.getComputedStyle(el);
+                    return rect.width > 0 && 
+                           rect.height > 0 && 
+                           style.visibility === 'visible' &&
+                           style.display !== 'none' &&
+                           style.pointerEvents !== 'none';
+                } catch (e) {
+                    return false;
                 }
             });
         };
 
-        // Edge-optimized mouse movement
+        // Firefox-compatible event simulation
         const simulateMouseMove = () => {
-            const x = window.scrollX + 50 + Math.random() * (window.innerWidth - 100);
-            const y = window.scrollY + 50 + Math.random() * (window.innerHeight - 100);
+            const x = window.scrollX + Math.random() * window.innerWidth;
+            const y = window.scrollY + Math.random() * window.innerHeight;
             
+            // Firefox-compatible event dispatch
             const events = [
                 new MouseEvent('mouseover', { bubbles: true, view: window }),
-                new MouseEvent('mousemove', { clientX: x, clientY: y, bubbles: true, view: window })
+                new MouseEvent('mousemove', { 
+                    clientX: x, 
+                    clientY: y, 
+                    bubbles: true, 
+                    view: window 
+                })
             ];
             
             events.forEach(event => {
                 try {
                     document.dispatchEvent(event);
                 } catch (e) {
-                    log('Mouse event error:', e);
+                    if (config.debug) console.log('Firefox mouse event error:', e);
                 }
             });
             
-            log(`Mouse moved to (${Math.round(x)}, ${Math.round(y)})`);
+            if (config.debug) console.log(`Mouse moved to (${Math.round(x)}, ${Math.round(y)})`);
         };
 
-        // Edge-compatible click simulation
+        // Firefox-compatible click simulation
         const simulateClick = (element) => {
             if (!element) return false;
             
@@ -125,9 +117,25 @@
                 
                 const events = [
                     new MouseEvent('mouseover', { bubbles: true, view: window }),
-                    new MouseEvent('mousedown', { bubbles: true, clientX: x, clientY: y, view: window }),
-                    new MouseEvent('mouseup', { bubbles: true, clientX: x, clientY: y, view: window }),
-                    new MouseEvent('click', { bubbles: true, clientX: x, clientY: y, view: window })
+                    new MouseEvent('mousedown', { 
+                        bubbles: true, 
+                        clientX: x, 
+                        clientY: y, 
+                        view: window,
+                        buttons: 1
+                    }),
+                    new MouseEvent('mouseup', { 
+                        bubbles: true, 
+                        clientX: x, 
+                        clientY: y, 
+                        view: window 
+                    }),
+                    new MouseEvent('click', { 
+                        bubbles: true, 
+                        clientX: x, 
+                        clientY: y, 
+                        view: window 
+                    })
                 ];
                 
                 events.forEach(event => {
@@ -136,87 +144,43 @@
                 
                 return true;
             } catch (e) {
-                log('Click simulation failed:', e);
+                if (config.debug) console.log('Firefox click error:', e);
                 return false;
             }
         };
 
-        // Major activity simulation (Edge-optimized)
-        const simulateMajorActivity = () => {
-            const now = Date.now();
-            if (now - state.lastActivity < config.activityInterval) return;
-            
-            state.lastActivity = now;
-            
-            try {
-                // Try to find and interact with the activity bar
-                const activityBar = document.querySelector('[data-testid="codespaces-activity-bar"]');
-                if (activityBar) {
-                    const tabs = activityBar.querySelectorAll('[role="tab"]');
-                    if (tabs.length > 1) {
-                        const activeIndex = Array.from(tabs).findIndex(t => t.getAttribute('aria-selected') === 'true');
-                        const nextIndex = (activeIndex + 1) % tabs.length;
-                        
-                        if (simulateClick(tabs[nextIndex])) {
-                            log(`Switched to ${tabs[nextIndex].getAttribute('aria-label')} tab`);
-                            
-                            setTimeout(() => {
-                                simulateClick(tabs[activeIndex]);
-                            }, 2500);
-                        }
-                    }
-                }
-                
-                // Simulate file explorer interaction
-                const explorer = document.querySelector('.explorer-folders-view') || 
-                               document.querySelector('.files-explorer');
-                if (explorer) {
-                    explorer.scrollBy(0, Math.random() > 0.5 ? 30 : -30);
-                    log("Scrolled file explorer");
-                }
-            } catch (e) {
-                log('Major activity error:', e);
-            }
-        };
-
-        // Main activity function
+        // Main keep-alive function
         const performKeepAliveActions = () => {
-            simulateMajorActivity();
-            
             const elements = findInteractiveElements();
             if (elements.length === 0) {
-                log('No interactive elements found');
+                if (config.debug) console.log('No interactive elements found');
                 return;
             }
             
-            // Get a random element that's currently visible
-            const visibleElements = elements.filter(el => {
-                const rect = el.getBoundingClientRect();
-                return rect.top >= 0 && 
-                       rect.left >= 0 &&
-                       rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-                       rect.right <= (window.innerWidth || document.documentElement.clientWidth);
-            });
-            
-            const targetElements = visibleElements.length > 0 ? visibleElements : elements;
-            const element = targetElements[Math.floor(Math.random() * targetElements.length)];
-            
-            if (simulateClick(element)) {
-                log(`Interacted with ${element.tagName.toLowerCase()}${element.id ? '#' + element.id : ''}`);
+            const element = elements[Math.floor(Math.random() * elements.length)];
+            if (simulateClick(element) && config.debug) {
+                console.log(`Clicked on ${element.tagName.toLowerCase()}${element.id ? '#' + element.id : ''}`);
             }
         };
 
-        // Start function with Edge optimizations
+        // State management
+        const state = {
+            isRunning: false,
+            timers: [],
+            lastMajorActivity: 0
+        };
+
+        // Start function with Firefox optimizations
         const start = () => {
             if (state.isRunning) return;
             
-            log('Starting Edge-optimized keep-alive');
             state.isRunning = true;
+            if (config.debug) console.log('Starting Firefox keep-alive');
             
             try {
                 localStorage.setItem(config.persistenceKey, 'true');
             } catch (e) {
-                log('LocalStorage set failed:', e);
+                if (config.debug) console.log('Firefox localStorage set error:', e);
             }
             
             // Initial actions
@@ -226,7 +190,13 @@
             // Set intervals
             state.timers = [
                 setInterval(performKeepAliveActions, config.clickInterval),
-                setInterval(simulateMouseMove, config.moveInterval)
+                setInterval(simulateMouseMove, config.moveInterval),
+                setInterval(() => {
+                    state.lastMajorActivity = Date.now();
+                    if (config.debug) console.log('Performing major activity cycle');
+                    simulateMouseMove();
+                    performKeepAliveActions();
+                }, config.activityInterval)
             ];
         };
 
@@ -234,7 +204,7 @@
         const stop = () => {
             if (!state.isRunning) return;
             
-            log('Stopping keep-alive');
+            if (config.debug) console.log('Stopping Firefox keep-alive');
             state.timers.forEach(clearInterval);
             state.timers = [];
             state.isRunning = false;
@@ -242,35 +212,24 @@
             try {
                 localStorage.removeItem(config.persistenceKey);
             } catch (e) {
-                log('LocalStorage remove failed:', e);
+                if (config.debug) console.log('Firefox localStorage remove error:', e);
             }
         };
 
-        // Auto-start if needed
+        // Expose controls
+        window.firefoxCodespacesKeepAlive = {
+            start,
+            stop,
+            isRunning: () => state.isRunning,
+            getConfig: () => ({...config})
+        };
+
+        // Auto-start if persisted
         if (shouldAutoStart()) {
             start();
         }
-
-        // Expose controls
-        window.edgeCodespacesKeepAlive = {
-            start,
-            stop,
-            getConfig: () => ({ ...config }),
-            isRunning: () => state.isRunning
-        };
-
-        // Add unload handler to clean up
-        window.addEventListener('beforeunload', () => {
-            if (state.isRunning) {
-                try {
-                    localStorage.setItem(config.persistenceKey, 'true');
-                } catch (e) {
-                    // Ignore errors
-                }
-            }
-        });
     }
 
-    // Initialize
-    initKeepAlive();
+    // Initialize with Firefox-specific adjustments
+    init();
 })();
