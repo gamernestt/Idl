@@ -11,27 +11,43 @@
     console.log("[AutoBack] Starting 15s back loop...");
     window.__autoBackInterval = setInterval(() => {
       try {
-        if (location.href === targetURL && history.length > 1) {
+        // Check if we can go back (history length > 1)
+        if (history.length > 1) {
           console.log("[AutoBack] Navigating back...");
           history.back();
+          
+          // Add a small delay to ensure back navigation completes
+          setTimeout(() => {
+            // Check if we're still on a page that should continue the loop
+            if (location.href.startsWith(targetURL.split('/')[0] + '//' + targetURL.split('/')[2])) {
+              console.log("[AutoBack] Still in target domain, will continue looping");
+            } else {
+              console.warn("[AutoBack] Left target domain, stopping loop");
+              stopLoop();
+            }
+          }, 1000);
         } else {
-          console.warn("[AutoBack] URL doesn't match or no history.");
+          console.warn("[AutoBack] No more history to go back to, stopping loop");
+          stopLoop();
         }
       } catch (e) {
         console.error("[AutoBack Error]", e);
+        stopLoop();
       }
     }, 15000);
   }
 
   function stopLoop() {
-    clearInterval(window.__autoBackInterval);
-    delete window.__autoBackInterval;
-    localStorage.removeItem(key);
-    console.log("[AutoBack] Loop stopped.");
+    if (window.__autoBackInterval) {
+      clearInterval(window.__autoBackInterval);
+      delete window.__autoBackInterval;
+      localStorage.removeItem(key);
+      console.log("[AutoBack] Loop stopped.");
+    }
   }
 
   // Auto-start if enabled and on the right URL
-  if (location.href === targetURL) {
+  if (location.href.startsWith(targetURL.split('/')[0] + '//' + targetURL.split('/')[2])) {
     if (localStorage.getItem(key) === "true") {
       startLoop();
     } else {
@@ -43,9 +59,10 @@
       }
     }
   } else {
-    console.warn("[AutoBack] Not on the target URL. Nothing started.");
+    console.warn("[AutoBack] Not on the target domain. Nothing started.");
   }
 
-  // Expose stop function to console
+  // Expose control functions to console
   window.stopAutoBack = stopLoop;
+  window.startAutoBack = startLoop;
 })();
