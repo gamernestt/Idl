@@ -1,81 +1,79 @@
-(function() {
-  const targetDomain = "80-firebase-andrpid-2-1748354430437.cluster-w5vd22whf5gmav2vgkomwtc4go.cloudworkstations.dev";
-  const key = "__autoBackEnabled";
-  let isNavigating = false;
+// Store the script in localStorage to survive page reloads
+if (!localStorage.getItem('__persistentAutoBack')) {
+  const autoBackScript = function() {
+    const targetDomain = "80-firebase-andrpid-2-1748354430437.cluster-w5vd22whf5gmav2vgkomwtc4go.cloudworkstations.dev";
+    const key = "__autoBackEnabled";
+    let lastBackTime = 0;
 
-  function startLoop() {
-    if (window.__autoBackInterval) {
-      console.log("[AutoBack] Loop already running.");
-      return;
-    }
-
-    console.log("[AutoBack] Starting 15s back loop...");
-    window.__autoBackInterval = setInterval(async () => {
-      if (isNavigating) return;
-      
+    function attemptBackNavigation() {
       try {
-        // 1. Check if we're still in the target domain
+        // Skip if we're not in target domain
         if (!location.hostname.includes(targetDomain)) {
-          console.warn("[AutoBack] Left target domain, stopping");
-          return stopLoop();
+          console.log('[AutoBack] Left target domain, stopping');
+          stopAutoBack();
+          return;
         }
 
-        // 2. Check history (with fallback for browser inconsistencies)
-        const canGoBack = history.length > 1 || 
-                         performance.navigation.type === performance.navigation.TYPE_BACK_FORWARD;
+        // Skip if we just navigated back
+        if (performance.now() - lastBackTime < 5000) return;
 
-        if (canGoBack) {
-          console.log("[AutoBack] Navigating back...");
-          isNavigating = true;
-          
-          // 3. Perform navigation with completion detection
-          const beforeNav = performance.now();
-          history.back();
-          
-          // 4. Wait for navigation to complete
-          await new Promise(resolve => {
-            const checkNav = () => {
-              if (performance.now() - beforeNav > 500) { // 500ms timeout
-                isNavigating = false;
-                resolve();
-              } else if (document.readyState === 'complete') {
-                isNavigating = false;
-                resolve();
-              } else {
-                setTimeout(checkNav, 50);
-              }
-            };
-            checkNav();
-          });
-          
-        } else {
-          console.warn("[AutoBack] No more history");
-          stopLoop();
-        }
+        console.log('[AutoBack] Attempting back navigation');
+        lastBackTime = performance.now();
+        
+        // Primary method
+        history.back();
+        
+        // Fallback method after delay
+        setTimeout(() => {
+          if (location.href.includes(targetDomain)) {
+            console.log('[AutoBack] Trying fallback method');
+            location.href = 'javascript:history.back()';
+          }
+        }, 300);
       } catch (e) {
-        console.error("[AutoBack Error]", e);
-        isNavigating = false;
+        console.error('[AutoBack Error]', e);
       }
-    }, 15000);
-  }
-
-  function stopLoop() {
-    clearInterval(window.__autoBackInterval);
-    delete window.__autoBackInterval;
-    localStorage.removeItem(key);
-    console.log("[AutoBack] Loop stopped.");
-  }
-
-  // Auto-start if enabled and in target domain
-  if (location.hostname.includes(targetDomain)) {
-    if (localStorage.getItem(key) === "true") {
-      startLoop();
-    } else if (confirm("Start auto-back every 15 seconds?")) {
-      localStorage.setItem(key, "true");
-      startLoop();
     }
-  }
 
-  window.stopAutoBack = stopLoop;
-  window.startAutoBack = startLoop;
-})();
+    function startAutoBack() {
+      if (window.__autoBackInterval) return;
+      
+      console.log('[AutoBack] Starting persistent back system');
+      localStorage.setItem(key, "true");
+      
+      // Run immediately and every 15 seconds
+      attemptBackNavigation();
+      window.__autoBackInterval = setInterval(attemptBackNavigation, 15000);
+      
+      // Re-inject after page reloads
+      window.addEventListener('load', () => {
+        if (localStorage.getItem(key) === "true") {
+          setTimeout(startAutoBack, 1000);
+        }
+      });
+    }
+
+    function stopAutoBack() {
+      clearInterval(window.__autoBackInterval);
+      localStorage.removeItem(key);
+      console.log('[AutoBack] Stopped persistent back system');
+    }
+
+    // Auto-start if enabled
+    if (location.hostname.includes(targetDomain)) {
+      if (localStorage.getItem(key) === "true" || confirm("Start persistent auto-back every 15 seconds?")) {
+        startAutoBack();
+      }
+    }
+
+    // Expose controls
+    window.startAutoBack = startAutoBack;
+    window.stopAutoBack = stopAutoBack;
+  }.toString();
+
+  // Store the script in localStorage
+  localStorage.setItem('__persistentAutoBack', autoBackScript);
+}
+
+// Execute the stored script
+eval(`(${localStorage.getItem('__persistentAutoBack')})()`);
