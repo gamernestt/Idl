@@ -1,0 +1,5 @@
+function backLoop() {
+  history.back();
+  setTimeout(backLoop, 15000);
+}
+backLoop();
