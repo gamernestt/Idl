@@ -1,11 +1,27 @@
-javascript:(function(){
-  (function loop(){
-    setTimeout(() => {
-      try {
-        history.back();
-      } catch (e) {}
-      loop(); // continues indefinitely
-    }, 15000); // 15 seconds
-  })();
-  alert('Persistent back loop started. Close the tab to stop it.');
+(function() {
+  try {
+    if (!window.__autoBackInterval) {
+      alert("⏪ Auto-back loop starting every 15 seconds.\nTo stop it, run: clearInterval(window.__autoBackInterval)");
+
+      console.log("%c[AutoBack]", "color: green; font-weight: bold;", "Auto-back loop started. Will go back every 15 seconds.");
+
+      window.__autoBackInterval = setInterval(() => {
+        try {
+          if (history.length > 1) {
+            console.log("%c[AutoBack]", "color: blue;", "Navigating back...");
+            history.back();
+          } else {
+            console.warn("%c[AutoBack]", "color: orange;", "No more pages in history to go back to.");
+          }
+        } catch (error) {
+          console.error("%c[AutoBack Error]", "color: red;", error);
+        }
+      }, 15000);
+    } else {
+      console.warn("%c[AutoBack]", "color: orange;", "Auto-back loop is already running.");
+    }
+  } catch (mainError) {
+    console.error("%c[AutoBack Startup Error]", "color: red;", mainError);
+    alert("❌ Failed to start auto-back loop. See console for details.");
+  }
 })();
