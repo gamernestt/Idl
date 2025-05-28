@@ -1,5 +1,9 @@
-function backLoop() {
-  history.back();
-  setTimeout(backLoop, 15000);
-}
-backLoop();
+javascript:(function(){
+  (function loop(){
+    setTimeout(()=>{
+      history.back();
+      loop(); // call again after delay
+    }, 15000); // 15 seconds
+  })();
+  alert('Back loop started (every 15 seconds). Close the tab to stop.');
+})();
