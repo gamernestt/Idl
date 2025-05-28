@@ -1,6 +1,7 @@
 (function() {
-  const targetURL = "https://80-firebase-andrpid-2-1748354430437.cluster-w5vd22whf5gmav2vgkomwtc4go.cloudworkstations.dev/vnc.html?autoconnect=true&resize=remote";
+  const targetDomain = "80-firebase-andrpid-2-1748354430437.cluster-w5vd22whf5gmav2vgkomwtc4go.cloudworkstations.dev";
   const key = "__autoBackEnabled";
+  let isNavigating = false;
 
   function startLoop() {
     if (window.__autoBackInterval) {
@@ -9,60 +10,72 @@
     }
 
     console.log("[AutoBack] Starting 15s back loop...");
-    window.__autoBackInterval = setInterval(() => {
+    window.__autoBackInterval = setInterval(async () => {
+      if (isNavigating) return;
+      
       try {
-        // Check if we can go back (history length > 1)
-        if (history.length > 1) {
+        // 1. Check if we're still in the target domain
+        if (!location.hostname.includes(targetDomain)) {
+          console.warn("[AutoBack] Left target domain, stopping");
+          return stopLoop();
+        }
+
+        // 2. Check history (with fallback for browser inconsistencies)
+        const canGoBack = history.length > 1 || 
+                         performance.navigation.type === performance.navigation.TYPE_BACK_FORWARD;
+
+        if (canGoBack) {
           console.log("[AutoBack] Navigating back...");
+          isNavigating = true;
+          
+          // 3. Perform navigation with completion detection
+          const beforeNav = performance.now();
           history.back();
           
-          // Add a small delay to ensure back navigation completes
-          setTimeout(() => {
-            // Check if we're still on a page that should continue the loop
-            if (location.href.startsWith(targetURL.split('/')[0] + '//' + targetURL.split('/')[2])) {
-              console.log("[AutoBack] Still in target domain, will continue looping");
-            } else {
-              console.warn("[AutoBack] Left target domain, stopping loop");
-              stopLoop();
-            }
-          }, 1000);
+          // 4. Wait for navigation to complete
+          await new Promise(resolve => {
+            const checkNav = () => {
+              if (performance.now() - beforeNav > 500) { // 500ms timeout
+                isNavigating = false;
+                resolve();
+              } else if (document.readyState === 'complete') {
+                isNavigating = false;
+                resolve();
+              } else {
+                setTimeout(checkNav, 50);
+              }
+            };
+            checkNav();
+          });
+          
         } else {
-          console.warn("[AutoBack] No more history to go back to, stopping loop");
+          console.warn("[AutoBack] No more history");
           stopLoop();
         }
       } catch (e) {
         console.error("[AutoBack Error]", e);
-        stopLoop();
+        isNavigating = false;
       }
     }, 15000);
   }
 
   function stopLoop() {
-    if (window.__autoBackInterval) {
-      clearInterval(window.__autoBackInterval);
-      delete window.__autoBackInterval;
-      localStorage.removeItem(key);
-      console.log("[AutoBack] Loop stopped.");
-    }
+    clearInterval(window.__autoBackInterval);
+    delete window.__autoBackInterval;
+    localStorage.removeItem(key);
+    console.log("[AutoBack] Loop stopped.");
   }
 
-  // Auto-start if enabled and on the right URL
-  if (location.href.startsWith(targetURL.split('/')[0] + '//' + targetURL.split('/')[2])) {
+  // Auto-start if enabled and in target domain
+  if (location.hostname.includes(targetDomain)) {
     if (localStorage.getItem(key) === "true") {
       startLoop();
-    } else {
-      // Ask the user once
-      const confirmed = confirm("Start auto-back every 15 seconds on this page?");
-      if (confirmed) {
-        localStorage.setItem(key, "true");
-        startLoop();
-      }
+    } else if (confirm("Start auto-back every 15 seconds?")) {
+      localStorage.setItem(key, "true");
+      startLoop();
     }
-  } else {
-    console.warn("[AutoBack] Not on the target domain. Nothing started.");
   }
 
-  // Expose control functions to console
   window.stopAutoBack = stopLoop;
   window.startAutoBack = startLoop;
 })();
