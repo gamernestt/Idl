@@ -1,27 +1,51 @@
 (function() {
-  try {
-    if (!window.__autoBackInterval) {
-      alert("⏪ Auto-back loop starting every 15 seconds.\nTo stop it, run: clearInterval(window.__autoBackInterval)");
+  const targetURL = "https://80-firebase-andrpid-2-1748354430437.cluster-w5vd22whf5gmav2vgkomwtc4go.cloudworkstations.dev/vnc.html?autoconnect=true&resize=remote";
+  const key = "__autoBackEnabled";
 
-      console.log("%c[AutoBack]", "color: green; font-weight: bold;", "Auto-back loop started. Will go back every 15 seconds.");
-
-      window.__autoBackInterval = setInterval(() => {
-        try {
-          if (history.length > 1) {
-            console.log("%c[AutoBack]", "color: blue;", "Navigating back...");
-            history.back();
-          } else {
-            console.warn("%c[AutoBack]", "color: orange;", "No more pages in history to go back to.");
-          }
-        } catch (error) {
-          console.error("%c[AutoBack Error]", "color: red;", error);
-        }
-      }, 15000);
-    } else {
-      console.warn("%c[AutoBack]", "color: orange;", "Auto-back loop is already running.");
+  function startLoop() {
+    if (window.__autoBackInterval) {
+      console.log("[AutoBack] Loop already running.");
+      return;
     }
-  } catch (mainError) {
-    console.error("%c[AutoBack Startup Error]", "color: red;", mainError);
-    alert("❌ Failed to start auto-back loop. See console for details.");
+
+    console.log("[AutoBack] Starting 15s back loop...");
+    window.__autoBackInterval = setInterval(() => {
+      try {
+        if (location.href === targetURL && history.length > 1) {
+          console.log("[AutoBack] Navigating back...");
+          history.back();
+        } else {
+          console.warn("[AutoBack] URL doesn't match or no history.");
+        }
+      } catch (e) {
+        console.error("[AutoBack Error]", e);
+      }
+    }, 15000);
   }
+
+  function stopLoop() {
+    clearInterval(window.__autoBackInterval);
+    delete window.__autoBackInterval;
+    localStorage.removeItem(key);
+    console.log("[AutoBack] Loop stopped.");
+  }
+
+  // Auto-start if enabled and on the right URL
+  if (location.href === targetURL) {
+    if (localStorage.getItem(key) === "true") {
+      startLoop();
+    } else {
+      // Ask the user once
+      const confirmed = confirm("Start auto-back every 15 seconds on this page?");
+      if (confirmed) {
+        localStorage.setItem(key, "true");
+        startLoop();
+      }
+    }
+  } else {
+    console.warn("[AutoBack] Not on the target URL. Nothing started.");
+  }
+
+  // Expose stop function to console
+  window.stopAutoBack = stopLoop;
 })();
